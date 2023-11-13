@@ -25,19 +25,16 @@ def smm(reps, data, initial_value):
 
     obs = len(data["Y"])
 
-    # Compute observed moments
     observed_moments = []
     for var in ["A", "B", "C"]:
         observed_moments.append(_compute_cross_moment(data["Y"], data[var]))
 
-    # Draw errors (fixed for repeated evaluations later)
-    e = _draw_errors(reps, obs)
+    errors = _draw_errors(reps, obs)
 
-    # Pass criterion function to optimizer
     def criterion(beta):
-        return _compute_smm_criterion(beta, data, observed_moments, e, reps)
+        """Compute SMM criterion function as fct of beta only for optimizer."""
+        return _compute_smm_criterion(beta, data, observed_moments, errors, reps)
 
-    # Minimize criterion using estimagic
     res = em.minimize(
         criterion=criterion,
         params=initial_value,
@@ -78,38 +75,15 @@ def _compute_smm_criterion(beta, data, observed_moments, e, reps):
 
     average_sim_moments = np.mean(simulated_moments, axis=0)
 
-    # Compute criterion function
     criterion = _square_loss(observed_moments, average_sim_moments)
     return criterion
 
 # Script to run SMM
 if __name__ == "__main__":
 
-    # Set seed
     np.random.seed(123)
-
-    # Set number of repetitions
     reps = 1000
-
-    # Set initial value
     initial_value = np.array([1, 1, 1])
-
-    # Simulate data
     data = pd.read_feather(src / "data.feather")
-    
-    # Run SMM
     res = smm(reps, data, initial_value)
-
-    # Print results
     print(res)
-
-    fig = em.criterion_plot(res, max_evaluations=300)
-    fig.show(renderer="pdf")
-
-    fig = em.params_plot(
-        res,
-        max_evaluations=300,
-        # optionally select a subset of parameters to plot
-        selector=lambda params: params["c"],
-    )
-    fig.show(renderer="pdf")
